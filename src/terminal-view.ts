@@ -29,10 +29,9 @@ export class TerminalView extends ItemView {
   getIcon() { return "bot"; }
 
   async onOpen() {
-    const container = this.containerEl.children[1] as HTMLElement;
+    const container = this.containerEl;
     container.empty();
     container.addClass("vault-terminal-container");
-    container.style.padding = "0";
     this.termHost = container.createDiv({ cls: "vault-terminal" });
     this.initTerminal();
     // Pick up cwd pre-set by openNewTerminal before setViewState was called

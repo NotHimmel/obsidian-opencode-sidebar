@@ -1,6 +1,6 @@
 {
   "name": "obsidian-opencode-sidebar",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Run OpenCode in your Obsidian sidebar",
   "main": "main.js",
   "scripts": {
