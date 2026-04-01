@@ -1,0 +1,10 @@
+{
+  "id": "opencode-sidebar",
+  "name": "OpenCode Sidebar",
+  "version": "1.0.0",
+  "minAppVersion": "1.0.0",
+  "description": "Run OpenCode in your sidebar.",
+  "author": "himmel",
+  "authorUrl": "https://github.com/himmel/obsidian-opencode-sidebar",
+  "isDesktopOnly": true
+}
