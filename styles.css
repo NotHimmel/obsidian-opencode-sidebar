@@ -1,21 +1,26 @@
-/* If Obsidian ever recreates .view-content inside our leaf, keep it flush */
-.workspace-leaf-content[data-type="opencode-terminal"] .view-content {
-  overflow: clip;
-  display: flex;
-  flex-direction: column;
+/* Hide Obsidian's view-header for the terminal — terminal takes full area */
+.workspace-leaf-content[data-type="opencode-terminal"] .view-header {
+  display: none !important;
 }
 
-/* Root terminal container — fills the entire workspace-leaf-content */
+/* Make .view-content (= contentEl) fill the leaf and remove default padding */
+.workspace-leaf-content[data-type="opencode-terminal"] .view-content {
+  padding: 0 !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Root terminal container — fills contentEl */
 .vault-terminal-container {
-  height: 100%;
+  flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
   overflow: hidden;
 }
 
-/* xterm mount point — grows to fill all available height, no padding */
+/* xterm mount point — no padding so FitAddon measures correctly */
 .vault-terminal {
   flex: 1;
   min-height: 0;
@@ -29,6 +34,7 @@
 
 .vault-terminal .xterm-viewport {
   overflow-y: auto !important;
+  scrollbar-gutter: stable;
 }
 
 /* xterm.js uses this textarea to capture keyboard input.

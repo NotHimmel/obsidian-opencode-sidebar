@@ -13,7 +13,7 @@ export class TerminalView extends ItemView {
   private pty: PtyManager = new PtyManager();
   private resizeObserver: ResizeObserver | null = null;
   private termHost: HTMLElement | null = null;
-  private fitTimeout: ReturnType<typeof setTimeout> | null = null;
+  private fitDebounce: ReturnType<typeof setTimeout> | null = null;
   private userScrolledAt = 0;
 
   // Set by folder context menu before startSession()
@@ -29,7 +29,8 @@ export class TerminalView extends ItemView {
   getIcon() { return "bot"; }
 
   async onOpen() {
-    const container = this.containerEl;
+    // contentEl is ItemView's proper content area (.view-content)
+    const container = this.contentEl;
     container.empty();
     container.addClass("vault-terminal-container");
     this.termHost = container.createDiv({ cls: "vault-terminal" });
@@ -73,22 +74,53 @@ export class TerminalView extends ItemView {
       });
     }
 
-    // Debounced fit on resize
+    // Fit on resize (sidebar drag, panel resize, etc.)
     this.resizeObserver = new ResizeObserver(() => this.scheduleFit());
     this.resizeObserver.observe(this.termHost!);
-    this.scheduleFit();
+
+    // Also refit on Obsidian layout changes (sidebar show/hide, pane splits)
+    this.registerEvent(
+      this.app.workspace.on("layout-change", () => this.scheduleFit())
+    );
+
+    // Initial fit with retry: wait until container has real dimensions
+    this.ensureFitWithRetry();
   }
 
   private scheduleFit() {
-    if (this.fitTimeout) clearTimeout(this.fitTimeout);
-    this.fitTimeout = setTimeout(() => {
-      if (!this.fitAddon || !this.term) return;
-      try {
-        this.fitAddon.fit();
-        const { cols, rows } = this.term;
-        this.pty.resize(cols, rows);
-      } catch {}
-    }, 50);
+    if (this.fitDebounce) clearTimeout(this.fitDebounce);
+    this.fitDebounce = setTimeout(() => this.doFit(), 50);
+  }
+
+  private doFit() {
+    if (!this.fitAddon || !this.term) return;
+    try {
+      const userScrolled = Date.now() - this.userScrolledAt < 5000;
+      const atBottom = !userScrolled &&
+        this.term.buffer.active.baseY === this.term.buffer.active.viewportY;
+      const savedY = this.term.buffer.active.viewportY;
+
+      this.fitAddon.fit();
+      this.pty.resize(this.term.cols, this.term.rows);
+
+      if (atBottom) {
+        this.term.scrollToBottom();
+      } else if (this.term.buffer.active.viewportY !== savedY) {
+        this.term.scrollToLine(savedY);
+      }
+    } catch {}
+  }
+
+  // Retry until the container has real dimensions (Obsidian renders async)
+  private async ensureFitWithRetry() {
+    for (let i = 0; i < 20; i++) {
+      await new Promise<void>(r => setTimeout(r, 100));
+      const dim = this.fitAddon?.proposeDimensions();
+      if (dim && dim.rows > 0 && dim.cols > 0) {
+        this.doFit();
+        return;
+      }
+    }
   }
 
   private resolveCwd(): string {
@@ -120,7 +152,6 @@ export class TerminalView extends ItemView {
       if (atBottom) {
         this.term.scrollToBottom();
       } else {
-        // Prevent viewport teleport
         if (buf.viewportY !== savedY) {
           this.term.scrollToLine(savedY);
         }
@@ -144,6 +175,9 @@ export class TerminalView extends ItemView {
       this.term?.write(`\x1b[31mFailed to start: ${err}\x1b[0m\r\n`);
     }
 
+    // Give focus to the terminal so keyboard input works immediately
+    setTimeout(() => this.term?.focus(), 500);
+
     this.plugin.data.lastCwd = workingDir;
     await this.plugin.saveData(this.plugin.data);
   }
@@ -163,7 +197,6 @@ export class TerminalView extends ItemView {
   async restartSession() {
     this.pty.kill();
     this.term?.clear();
-    // Remove any stale restart buttons
     this.termHost?.querySelectorAll(".vault-terminal-restart").forEach((el) => el.remove());
     await this.startSession();
   }
@@ -180,7 +213,7 @@ export class TerminalView extends ItemView {
 
   async onClose() {
     this.resizeObserver?.disconnect();
-    if (this.fitTimeout) clearTimeout(this.fitTimeout);
+    if (this.fitDebounce) clearTimeout(this.fitDebounce);
     this.pty.kill();
     this.term?.dispose();
     this.term = null;

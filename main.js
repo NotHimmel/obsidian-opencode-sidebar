@@ -6371,7 +6371,7 @@ var TerminalView = class extends import_obsidian.ItemView {
     this.pty = new PtyManager();
     this.resizeObserver = null;
     this.termHost = null;
-    this.fitTimeout = null;
+    this.fitDebounce = null;
     this.userScrolledAt = 0;
     // Set by folder context menu before startSession()
     this.workingDir = null;
@@ -6387,7 +6387,7 @@ var TerminalView = class extends import_obsidian.ItemView {
     return "bot";
   }
   async onOpen() {
-    const container = this.containerEl;
+    const container = this.contentEl;
     container.empty();
     container.addClass("vault-terminal-container");
     this.termHost = container.createDiv({ cls: "vault-terminal" });
@@ -6423,19 +6423,42 @@ var TerminalView = class extends import_obsidian.ItemView {
     }
     this.resizeObserver = new ResizeObserver(() => this.scheduleFit());
     this.resizeObserver.observe(this.termHost);
-    this.scheduleFit();
+    this.registerEvent(
+      this.app.workspace.on("layout-change", () => this.scheduleFit())
+    );
+    this.ensureFitWithRetry();
   }
   scheduleFit() {
-    if (this.fitTimeout) clearTimeout(this.fitTimeout);
-    this.fitTimeout = setTimeout(() => {
-      if (!this.fitAddon || !this.term) return;
-      try {
-        this.fitAddon.fit();
-        const { cols, rows } = this.term;
-        this.pty.resize(cols, rows);
-      } catch (e) {
+    if (this.fitDebounce) clearTimeout(this.fitDebounce);
+    this.fitDebounce = setTimeout(() => this.doFit(), 50);
+  }
+  doFit() {
+    if (!this.fitAddon || !this.term) return;
+    try {
+      const userScrolled = Date.now() - this.userScrolledAt < 5e3;
+      const atBottom = !userScrolled && this.term.buffer.active.baseY === this.term.buffer.active.viewportY;
+      const savedY = this.term.buffer.active.viewportY;
+      this.fitAddon.fit();
+      this.pty.resize(this.term.cols, this.term.rows);
+      if (atBottom) {
+        this.term.scrollToBottom();
+      } else if (this.term.buffer.active.viewportY !== savedY) {
+        this.term.scrollToLine(savedY);
       }
-    }, 50);
+    } catch (e) {
+    }
+  }
+  // Retry until the container has real dimensions (Obsidian renders async)
+  async ensureFitWithRetry() {
+    var _a;
+    for (let i = 0; i < 20; i++) {
+      await new Promise((r) => setTimeout(r, 100));
+      const dim = (_a = this.fitAddon) == null ? void 0 : _a.proposeDimensions();
+      if (dim && dim.rows > 0 && dim.cols > 0) {
+        this.doFit();
+        return;
+      }
+    }
   }
   resolveCwd() {
     var _a;
@@ -6485,6 +6508,10 @@ var TerminalView = class extends import_obsidian.ItemView {
       (_e = this.term) == null ? void 0 : _e.write(`\x1B[31mFailed to start: ${err}\x1B[0m\r
 `);
     }
+    setTimeout(() => {
+      var _a2;
+      return (_a2 = this.term) == null ? void 0 : _a2.focus();
+    }, 500);
     this.plugin.data.lastCwd = workingDir;
     await this.plugin.saveData(this.plugin.data);
   }
@@ -6518,7 +6545,7 @@ var TerminalView = class extends import_obsidian.ItemView {
   async onClose() {
     var _a, _b;
     (_a = this.resizeObserver) == null ? void 0 : _a.disconnect();
-    if (this.fitTimeout) clearTimeout(this.fitTimeout);
+    if (this.fitDebounce) clearTimeout(this.fitDebounce);
     this.pty.kill();
     (_b = this.term) == null ? void 0 : _b.dispose();
     this.term = null;
