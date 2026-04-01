@@ -1,0 +1,42 @@
+.vault-terminal-container {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.vault-terminal {
+  flex: 1;
+  overflow: hidden;
+  padding: 4px;
+}
+
+.vault-terminal .xterm {
+  height: 100%;
+}
+
+.vault-terminal .xterm-viewport {
+  overflow-y: auto;
+}
+
+/* IME / CJK input overlay */
+.vault-terminal .xterm-helper-textarea {
+  position: fixed !important;
+  opacity: 0 !important;
+}
+
+.vault-terminal-restart {
+  display: block;
+  margin: 8px;
+  padding: 4px 12px;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.vault-terminal-restart:hover {
+  background: var(--interactive-accent-hover);
+}
