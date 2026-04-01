@@ -94,11 +94,13 @@ export class PtyManager {
   }
 
   write(data: string): void {
-    this.proc?.stdin?.write(data, "utf8");
+    // Convert to Buffer so ASCII bytes are identical to "binary" mode
+    // while multi-byte chars (e.g. Chinese) are correctly UTF-8 encoded.
+    this.proc?.stdin?.write(Buffer.from(data, "utf8"));
   }
 
   resize(cols: number, rows: number): void {
-    this.proc?.stdin?.write(`\x1b]RESIZE;${cols};${rows}\x07`, "utf8");
+    this.proc?.stdin?.write(Buffer.from(`\x1b]RESIZE;${cols};${rows}\x07`, "utf8"));
   }
 
   kill(): void {
