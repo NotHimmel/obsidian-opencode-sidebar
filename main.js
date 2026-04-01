@@ -6390,6 +6390,7 @@ var TerminalView = class extends import_obsidian.ItemView {
     const container = this.containerEl.children[1];
     container.empty();
     container.addClass("vault-terminal-container");
+    container.style.padding = "0";
     this.termHost = container.createDiv({ cls: "vault-terminal" });
     this.initTerminal();
     if (this.plugin.pendingCwd) {
