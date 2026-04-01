@@ -20,10 +20,14 @@
   overflow-y: auto;
 }
 
-/* IME / CJK input overlay */
+/* IME support: keep textarea positioned near cursor so input method
+   candidate window appears in the right place. Only hide visually. */
 .vault-terminal .xterm-helper-textarea {
-  position: fixed !important;
   opacity: 0 !important;
+  border: 0 !important;
+  padding: 0 !important;
+  outline: none !important;
+  pointer-events: none;
 }
 
 .vault-terminal-restart {
