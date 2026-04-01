@@ -94,11 +94,11 @@ export class PtyManager {
   }
 
   write(data: string): void {
-    this.proc?.stdin?.write(data, "binary");
+    this.proc?.stdin?.write(data, "utf8");
   }
 
   resize(cols: number, rows: number): void {
-    this.proc?.stdin?.write(`\x1b]RESIZE;${cols};${rows}\x07`, "binary");
+    this.proc?.stdin?.write(`\x1b]RESIZE;${cols};${rows}\x07`, "utf8");
   }
 
   kill(): void {

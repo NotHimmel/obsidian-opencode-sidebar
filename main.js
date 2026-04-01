@@ -6288,11 +6288,11 @@ Failed to start process: ${err.message}\r
   }
   write(data) {
     var _a, _b;
-    (_b = (_a = this.proc) == null ? void 0 : _a.stdin) == null ? void 0 : _b.write(data, "binary");
+    (_b = (_a = this.proc) == null ? void 0 : _a.stdin) == null ? void 0 : _b.write(data, "utf8");
   }
   resize(cols, rows) {
     var _a, _b;
-    (_b = (_a = this.proc) == null ? void 0 : _a.stdin) == null ? void 0 : _b.write(`\x1B]RESIZE;${cols};${rows}\x07`, "binary");
+    (_b = (_a = this.proc) == null ? void 0 : _a.stdin) == null ? void 0 : _b.write(`\x1B]RESIZE;${cols};${rows}\x07`, "utf8");
   }
   kill() {
     if (this.proc) {
