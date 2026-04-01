@@ -20,14 +20,12 @@
   overflow-y: auto;
 }
 
-/* IME support: keep textarea positioned near cursor so input method
-   candidate window appears in the right place. Only hide visually. */
+/* xterm.js uses this textarea to capture keyboard input.
+   position:fixed keeps it in the viewport so focus() always works.
+   IME candidate window positioning is handled by xterm.js itself. */
 .vault-terminal .xterm-helper-textarea {
+  position: fixed !important;
   opacity: 0 !important;
-  border: 0 !important;
-  padding: 0 !important;
-  outline: none !important;
-  pointer-events: none;
 }
 
 .vault-terminal-restart {
