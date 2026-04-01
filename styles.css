@@ -9,7 +9,6 @@
 .vault-terminal {
   flex: 1;
   overflow: hidden;
-  padding: 4px;
   position: relative;
 }
 
