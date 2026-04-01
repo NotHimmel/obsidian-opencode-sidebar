@@ -50,7 +50,7 @@ This plugin embeds OpenCode in the Obsidian sidebar so you can use it without le
 **Development**
 
 ```bash
-git clone https://github.com/himmel/obsidian-opencode-sidebar
+git clone https://github.com/NotHimmel/obsidian-opencode-sidebar
 cd obsidian-opencode-sidebar
 npm install
 npm run dev    # watch mode
@@ -132,7 +132,7 @@ MIT
 **开发模式**
 
 ```bash
-git clone https://github.com/himmel/obsidian-opencode-sidebar
+git clone https://github.com/NotHimmel/obsidian-opencode-sidebar
 cd obsidian-opencode-sidebar
 npm install
 npm run dev    # 监听模式

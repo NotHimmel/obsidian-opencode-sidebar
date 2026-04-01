@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "minAppVersion": "1.0.0",
   "description": "Run OpenCode in your sidebar.",
-  "author": "himmel",
-  "authorUrl": "https://github.com/himmel/obsidian-opencode-sidebar",
+  "author": "NotHimmel",
+  "authorUrl": "https://github.com/NotHimmel/obsidian-opencode-sidebar",
   "isDesktopOnly": true
 }
