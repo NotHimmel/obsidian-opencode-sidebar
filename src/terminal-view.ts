@@ -34,6 +34,11 @@ export class TerminalView extends ItemView {
     container.addClass("vault-terminal-container");
     this.termHost = container.createDiv({ cls: "vault-terminal" });
     this.initTerminal();
+    // Pick up cwd pre-set by openNewTerminal before setViewState was called
+    if (this.plugin.pendingCwd) {
+      this.workingDir = this.plugin.pendingCwd;
+      this.plugin.pendingCwd = null;
+    }
     await this.startSession();
   }
 

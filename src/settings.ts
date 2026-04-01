@@ -6,7 +6,6 @@ export interface PluginData {
   additionalFlags: string | null;
   lastCwd: string | null;
   ansiTheme: "obsidian" | "default";
-  yoloMode: boolean;
 }
 
 export const DEFAULT_DATA: PluginData = {
@@ -14,7 +13,6 @@ export const DEFAULT_DATA: PluginData = {
   additionalFlags: null,
   lastCwd: null,
   ansiTheme: "obsidian",
-  yoloMode: false,
 };
 
 export class OpenCodeSettingTab extends PluginSettingTab {

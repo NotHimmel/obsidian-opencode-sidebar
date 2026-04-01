@@ -5,6 +5,7 @@ import { registerContextMenus, ensureTerminalView, openNewTerminal } from "./con
 
 export default class OpenCodePlugin extends Plugin {
   data: PluginData = { ...DEFAULT_DATA };
+  pendingCwd: string | null = null;
 
   async onload() {
     this.data = Object.assign({ ...DEFAULT_DATA }, await this.loadData());

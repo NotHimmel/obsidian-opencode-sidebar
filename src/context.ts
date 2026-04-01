@@ -44,14 +44,10 @@ export async function openNewTerminal(
 ): Promise<TerminalView | null> {
   const leaf = plugin.app.workspace.getRightLeaf(false);
   if (!leaf) return null;
+  if (cwd) plugin.pendingCwd = cwd;
   await leaf.setViewState({ type: VIEW_TYPE, active: true });
   plugin.app.workspace.revealLeaf(leaf);
-  const view = leaf.view as TerminalView;
-  if (cwd) {
-    view.workingDir = cwd;
-    await view.startSession(cwd);
-  }
-  return view;
+  return leaf.view as TerminalView;
 }
 
 export async function ensureTerminalView(

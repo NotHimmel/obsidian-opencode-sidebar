@@ -6392,6 +6392,10 @@ var TerminalView = class extends import_obsidian.ItemView {
     container.addClass("vault-terminal-container");
     this.termHost = container.createDiv({ cls: "vault-terminal" });
     this.initTerminal();
+    if (this.plugin.pendingCwd) {
+      this.workingDir = this.plugin.pendingCwd;
+      this.plugin.pendingCwd = null;
+    }
     await this.startSession();
   }
   initTerminal() {
@@ -6528,8 +6532,7 @@ var DEFAULT_DATA = {
   defaultWorkingDir: null,
   additionalFlags: null,
   lastCwd: null,
-  ansiTheme: "obsidian",
-  yoloMode: false
+  ansiTheme: "obsidian"
 };
 var OpenCodeSettingTab = class extends import_obsidian2.PluginSettingTab {
   constructor(app, plugin) {
@@ -6592,14 +6595,10 @@ function registerContextMenus(plugin) {
 async function openNewTerminal(plugin, cwd) {
   const leaf = plugin.app.workspace.getRightLeaf(false);
   if (!leaf) return null;
+  if (cwd) plugin.pendingCwd = cwd;
   await leaf.setViewState({ type: VIEW_TYPE, active: true });
   plugin.app.workspace.revealLeaf(leaf);
-  const view = leaf.view;
-  if (cwd) {
-    view.workingDir = cwd;
-    await view.startSession(cwd);
-  }
-  return view;
+  return leaf.view;
 }
 async function ensureTerminalView(plugin) {
   const leaves = plugin.app.workspace.getLeavesOfType(VIEW_TYPE);
@@ -6619,6 +6618,7 @@ var OpenCodePlugin = class extends import_obsidian4.Plugin {
   constructor() {
     super(...arguments);
     this.data = { ...DEFAULT_DATA };
+    this.pendingCwd = null;
   }
   async onload() {
     this.data = Object.assign({ ...DEFAULT_DATA }, await this.loadData());
