@@ -6,6 +6,7 @@
 /* Make .view-content (= contentEl) fill the leaf and remove default padding */
 .workspace-leaf-content[data-type="opencode-terminal"] .view-content {
   padding: 0 !important;
+  margin: 0 !important;
   overflow: hidden !important;
   display: flex !important;
   flex-direction: column !important;
