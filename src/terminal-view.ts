@@ -75,6 +75,11 @@ export class TerminalView extends ItemView {
     container.empty();
     container.addClass("vault-terminal");
     this.termHost = container.createDiv({ cls: "vault-terminal-host" });
+    // Wait one animation frame so the browser computes layout before opening
+    // xterm — without this, term.open() creates a 0x0 canvas and font
+    // measurement returns 0, causing fitAddon.proposeDimensions() to always
+    // return null and the retry loop to exhaust without ever fitting.
+    await new Promise<void>(r => requestAnimationFrame(() => r()));
     this.initTerminal();
     // Pick up cwd pre-set by openNewTerminal before setViewState was called
     if (this.plugin.pendingCwd) {
@@ -82,8 +87,8 @@ export class TerminalView extends ItemView {
       this.plugin.pendingCwd = null;
     }
     await this.startSession();
-    // Fit after PTY is running so pty.resize() reaches a live process
-    this.ensureFitWithRetry();
+    // Second fit after PTY starts so pty.resize() reaches a live process
+    this.scheduleFit();
   }
 
   private initTerminal() {
@@ -102,6 +107,8 @@ export class TerminalView extends ItemView {
     this.fitAddon = new FitAddon();
     this.term.loadAddon(this.fitAddon);
     this.term.open(this.termHost!);
+    // Fit immediately after open — container has real dimensions at this point
+    try { this.fitAddon.fit(); } catch {}
 
     // Forward keyboard/paste input to PTY
     this.term.onData((data) => this.pty.write(data));
@@ -150,18 +157,6 @@ export class TerminalView extends ItemView {
         this.term.scrollToLine(savedY);
       }
     } catch {}
-  }
-
-  // Retry until the container has real dimensions (Obsidian renders async)
-  private async ensureFitWithRetry() {
-    for (let i = 0; i < 20; i++) {
-      await new Promise<void>(r => setTimeout(r, 100));
-      const dim = this.fitAddon?.proposeDimensions();
-      if (dim && dim.rows > 0 && dim.cols > 0) {
-        this.doFit();
-        return;
-      }
-    }
   }
 
   private resolveCwd(): string {
