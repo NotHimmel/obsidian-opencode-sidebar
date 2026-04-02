@@ -29,8 +29,9 @@ export class TerminalView extends ItemView {
   getIcon() { return "bot"; }
 
   async onOpen() {
-    // contentEl is ItemView's proper content area (.view-content)
-    const container = this.contentEl;
+    // Use containerEl (= .workspace-leaf-content) so empty() removes view-header
+    // from the DOM entirely, eliminating the gap above the terminal.
+    const container = this.containerEl;
     container.empty();
     container.addClass("vault-terminal-container");
     this.termHost = container.createDiv({ cls: "vault-terminal" });

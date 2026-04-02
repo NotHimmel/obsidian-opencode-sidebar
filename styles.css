@@ -1,21 +1,7 @@
-/* Hide Obsidian's view-header for the terminal — terminal takes full area */
-.workspace-leaf-content[data-type="opencode-terminal"] .view-header {
-  display: none !important;
-}
-
-/* Make .view-content (= contentEl) fill the leaf and remove default padding */
-.workspace-leaf-content[data-type="opencode-terminal"] .view-content {
-  padding: 0 !important;
-  margin: 0 !important;
-  overflow: hidden !important;
-  display: flex !important;
-  flex-direction: column !important;
-}
-
-/* Root terminal container — fills contentEl */
-.vault-terminal-container {
-  flex: 1;
-  min-height: 0;
+/* Root container — containerEl (.workspace-leaf-content) fills the leaf.
+   view-header is removed from DOM by containerEl.empty() in onOpen(). */
+.workspace-leaf-content[data-type="opencode-terminal"].vault-terminal-container {
+  height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
