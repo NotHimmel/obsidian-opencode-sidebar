@@ -82,6 +82,8 @@ export class TerminalView extends ItemView {
       this.plugin.pendingCwd = null;
     }
     await this.startSession();
+    // Fit after PTY is running so pty.resize() reaches a live process
+    this.ensureFitWithRetry();
   }
 
   private initTerminal() {
@@ -124,8 +126,6 @@ export class TerminalView extends ItemView {
       this.app.workspace.on("layout-change", () => this.scheduleFit())
     );
 
-    // Initial fit with retry: wait until container has real dimensions
-    this.ensureFitWithRetry();
   }
 
   private scheduleFit() {

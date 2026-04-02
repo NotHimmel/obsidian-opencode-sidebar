@@ -6436,6 +6436,7 @@ var TerminalView = class extends import_obsidian.ItemView {
       this.plugin.pendingCwd = null;
     }
     await this.startSession();
+    this.ensureFitWithRetry();
   }
   initTerminal() {
     const theme = this.plugin.data.ansiTheme === "obsidian" ? getObsidianTheme() : {};
@@ -6465,7 +6466,6 @@ var TerminalView = class extends import_obsidian.ItemView {
     this.registerEvent(
       this.app.workspace.on("layout-change", () => this.scheduleFit())
     );
-    this.ensureFitWithRetry();
   }
   scheduleFit() {
     if (this.fitDebounce) clearTimeout(this.fitDebounce);
