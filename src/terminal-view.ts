@@ -33,8 +33,8 @@ export class TerminalView extends ItemView {
     // from the DOM entirely, eliminating the gap above the terminal.
     const container = this.containerEl;
     container.empty();
-    container.addClass("vault-terminal-container");
-    this.termHost = container.createDiv({ cls: "vault-terminal" });
+    container.addClass("vault-terminal");
+    this.termHost = container.createDiv({ cls: "vault-terminal-host" });
     this.initTerminal();
     // Pick up cwd pre-set by openNewTerminal before setViewState was called
     if (this.plugin.pendingCwd) {

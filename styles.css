@@ -1,33 +1,40 @@
-/* Root container — containerEl (.workspace-leaf-content) fills the leaf.
-   view-header is removed from DOM by containerEl.empty() in onOpen(). */
-.workspace-leaf-content[data-type="opencode-terminal"].vault-terminal-container {
+.vault-terminal {
   height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  padding-bottom: calc(24px + var(--status-bar-height, 0px) + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  background-color: var(--background-secondary);
   overflow: hidden;
 }
 
-/* xterm mount point — no padding so FitAddon measures correctly */
-.vault-terminal {
+.vault-terminal-host {
   flex: 1;
   min-height: 0;
   overflow: hidden;
   position: relative;
+  background-color: var(--background-secondary);
+  overscroll-behavior: contain;
 }
 
-.vault-terminal .xterm {
+.vault-terminal-host .xterm {
   height: 100%;
+  background-color: var(--background-secondary) !important;
 }
 
-.vault-terminal .xterm-viewport {
+.vault-terminal-host .xterm .xterm-screen {
+  background-color: var(--background-secondary) !important;
+}
+
+.vault-terminal-host .xterm-viewport {
   overflow-y: auto !important;
+  background-color: var(--background-secondary) !important;
+  overscroll-behavior: contain;
   scrollbar-gutter: stable;
 }
 
-/* xterm.js uses this textarea to capture keyboard input.
-   Positioned within .vault-terminal (position:relative) so
-   IME candidate window follows the cursor correctly. */
-.vault-terminal .xterm-helper-textarea {
+.vault-terminal-host .xterm .xterm-helper-textarea {
   opacity: 0 !important;
   border: 0 !important;
   padding: 0 !important;

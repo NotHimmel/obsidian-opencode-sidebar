@@ -6389,8 +6389,8 @@ var TerminalView = class extends import_obsidian.ItemView {
   async onOpen() {
     const container = this.containerEl;
     container.empty();
-    container.addClass("vault-terminal-container");
-    this.termHost = container.createDiv({ cls: "vault-terminal" });
+    container.addClass("vault-terminal");
+    this.termHost = container.createDiv({ cls: "vault-terminal-host" });
     this.initTerminal();
     if (this.plugin.pendingCwd) {
       this.workingDir = this.plugin.pendingCwd;
