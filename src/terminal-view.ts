@@ -73,16 +73,27 @@ export class TerminalView extends ItemView {
     container.empty();
     container.addClass("vault-terminal");
     this.termHost = container.createDiv({ cls: "vault-terminal-host" });
-    this.initTerminal();
     // Pick up cwd pre-set by openNewTerminal before setViewState was called
     if (this.plugin.pendingCwd) {
       this.workingDir = this.plugin.pendingCwd;
       this.plugin.pendingCwd = null;
     }
-    // Delay session start so onOpen() returns first, letting Obsidian finish
-    // revealing and laying out the sidebar before we measure dimensions.
-    // ensureFitWithRetry() handles sizing once real dimensions are available.
-    setTimeout(() => this.startSession(), 10);
+    // Return immediately so Obsidian reveals and lays out the sidebar leaf.
+    // initAndStart() waits for real pixel dimensions before calling term.open(),
+    // ensuring xterm's char size is measured correctly on first open.
+    this.initAndStart();
+  }
+
+  private async initAndStart() {
+    // Wait until termHost has real pixel dimensions (sidebar fully revealed)
+    for (let i = 0; i < 40; i++) {
+      await new Promise<void>(r => setTimeout(r, 50));
+      if (this.termHost!.offsetWidth > 0 && this.termHost!.offsetHeight > 0) break;
+    }
+    if (!this.termHost) return;
+    this.initTerminal();   // term.open() now has valid dimensions → char size ≠ 0
+    this.doFit();          // immediate fit works because char size is correct
+    await this.startSession(); // PTY starts with correct term.cols / term.rows
   }
 
   private initTerminal() {
@@ -101,8 +112,6 @@ export class TerminalView extends ItemView {
     this.fitAddon = new FitAddon();
     this.term.loadAddon(this.fitAddon);
     this.term.open(this.termHost!);
-    // Fit immediately after open — container has real dimensions at this point
-    try { this.fitAddon.fit(); } catch {}
 
     // Forward keyboard/paste input to PTY
     this.term.onData((data) => this.pty.write(data));
@@ -126,9 +135,6 @@ export class TerminalView extends ItemView {
     this.registerEvent(
       this.app.workspace.on("layout-change", () => this.scheduleFit())
     );
-
-    // Retry fit until container has real dimensions (Obsidian reveals leaf async)
-    this.ensureFitWithRetry();
   }
 
   private scheduleFit() {
@@ -153,17 +159,6 @@ export class TerminalView extends ItemView {
         this.term.scrollToLine(savedY);
       }
     } catch {}
-  }
-
-  private async ensureFitWithRetry() {
-    for (let i = 0; i < 20; i++) {
-      await new Promise<void>(r => setTimeout(r, 100));
-      const dim = this.fitAddon?.proposeDimensions();
-      if (dim && dim.rows > 0 && dim.cols > 0) {
-        this.doFit();
-        return;
-      }
-    }
   }
 
   private resolveCwd(): string {
