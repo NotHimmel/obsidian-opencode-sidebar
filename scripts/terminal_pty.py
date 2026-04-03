@@ -44,6 +44,13 @@ def set_size(fd, cols, rows):
     """Set the PTY window size."""
     winsize = struct.pack('HHHH', rows, cols, 0, 0)
     fcntl.ioctl(fd, termios.TIOCSWINSZ, winsize)
+    # Explicitly send SIGWINCH: kernel only auto-sends it when size changes,
+    # so a same-size resize (e.g. post-startup retry) would silently drop the signal.
+    if child_pid:
+        try:
+            os.killpg(child_pid, signal.SIGWINCH)
+        except (ProcessLookupError, PermissionError, OSError):
+            pass
 
 def main():
     global child_pid
