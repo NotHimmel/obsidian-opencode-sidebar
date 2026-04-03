@@ -109,6 +109,14 @@ export class TerminalView extends ItemView {
         if (this.pty.isRunning) {
           this.pty.resize(this.term!.cols, this.term!.rows);
         }
+        // After OpenCode's initial TUI draw settles, force a full canvas
+        // refresh so the input area cells are re-rendered. Without this,
+        // xterm marks those cells "clean" after the initial fit repaint and
+        // won't repaint them again even if OpenCode wrote to them — the same
+        // issue that a manual width-drag fixes (which triggers a clear+resize).
+        setTimeout(() => {
+          if (this.term) this.term.refresh(0, this.term.rows - 1);
+        }, 600);
         return;
       }
     }
