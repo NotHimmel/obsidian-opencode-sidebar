@@ -14,6 +14,7 @@ export class TerminalView extends ItemView {
   private resizeObserver: ResizeObserver | null = null;
   private termHost: HTMLElement | null = null;
   private fitDebounce: ReturnType<typeof setTimeout> | null = null;
+  private postInitTimer: ReturnType<typeof setTimeout> | null = null;
   private userScrolledAt = 0;
 
   // Set by folder context menu before startSession()
@@ -198,6 +199,21 @@ export class TerminalView extends ItemView {
     const extra = this.plugin.data.additionalFlags;
     if (extra) flags.push(...extra.split(/\s+/).filter(Boolean));
 
+    // One-shot: send a SIGWINCH 500 ms after the last PTY data burst.
+    // This fires once OpenCode's initial TUI render has settled, activating
+    // the input widget on TUI frameworks that need a resize event to do so.
+    // The flag is local to this session so it resets on restartSession().
+    let postInitDone = false;
+    const schedulePostInit = () => {
+      if (postInitDone) return;
+      if (this.postInitTimer) clearTimeout(this.postInitTimer);
+      this.postInitTimer = setTimeout(() => {
+        if (postInitDone || !this.pty.isRunning || !this.term) return;
+        postInitDone = true;
+        this.pty.resize(this.term.cols, this.term.rows);
+      }, 500);
+    };
+
     this.pty.onData = (data) => {
       if (!this.term) return;
       const buf = this.term.buffer.active;
@@ -212,6 +228,7 @@ export class TerminalView extends ItemView {
           this.term.scrollToLine(savedY);
         }
       }
+      schedulePostInit();
     };
 
     this.pty.onError = (data) => {
@@ -270,6 +287,7 @@ export class TerminalView extends ItemView {
   async onClose() {
     this.resizeObserver?.disconnect();
     if (this.fitDebounce) clearTimeout(this.fitDebounce);
+    if (this.postInitTimer) clearTimeout(this.postInitTimer);
     this.pty.kill();
     this.term?.dispose();
     this.term = null;
