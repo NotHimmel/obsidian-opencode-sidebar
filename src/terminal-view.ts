@@ -251,7 +251,7 @@ export class TerminalView extends ItemView {
       setTimeout(() => {
         if (this.pty.isRunning && this.term) this.term.resize(c, r); // SIGWINCH: cols-1 → cols
       }, 100);
-    }, 2000);
+    }, 10000);
 
     this.plugin.data.lastCwd = workingDir;
     await this.plugin.saveData(this.plugin.data);
