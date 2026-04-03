@@ -6430,14 +6430,12 @@ var TerminalView = class extends import_obsidian.ItemView {
     container.empty();
     container.addClass("vault-terminal");
     this.termHost = container.createDiv({ cls: "vault-terminal-host" });
-    await new Promise((r) => requestAnimationFrame(() => r()));
     this.initTerminal();
     if (this.plugin.pendingCwd) {
       this.workingDir = this.plugin.pendingCwd;
       this.plugin.pendingCwd = null;
     }
-    await this.startSession();
-    this.scheduleFit();
+    setTimeout(() => this.startSession(), 10);
   }
   initTerminal() {
     const theme = this.plugin.data.ansiTheme === "obsidian" ? getObsidianTheme() : {};
@@ -6471,6 +6469,7 @@ var TerminalView = class extends import_obsidian.ItemView {
     this.registerEvent(
       this.app.workspace.on("layout-change", () => this.scheduleFit())
     );
+    this.ensureFitWithRetry();
   }
   scheduleFit() {
     if (this.fitDebounce) clearTimeout(this.fitDebounce);
@@ -6490,6 +6489,17 @@ var TerminalView = class extends import_obsidian.ItemView {
         this.term.scrollToLine(savedY);
       }
     } catch (e) {
+    }
+  }
+  async ensureFitWithRetry() {
+    var _a;
+    for (let i = 0; i < 20; i++) {
+      await new Promise((r) => setTimeout(r, 100));
+      const dim = (_a = this.fitAddon) == null ? void 0 : _a.proposeDimensions();
+      if (dim && dim.rows > 0 && dim.cols > 0) {
+        this.doFit();
+        return;
+      }
     }
   }
   resolveCwd() {

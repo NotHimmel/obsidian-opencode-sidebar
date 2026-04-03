@@ -69,26 +69,20 @@ export class TerminalView extends ItemView {
 
   async onOpen() {
     this.injectCSS();
-    // Use containerEl (= .workspace-leaf-content) so empty() removes view-header
-    // from the DOM entirely, eliminating the gap above the terminal.
     const container = this.containerEl;
     container.empty();
     container.addClass("vault-terminal");
     this.termHost = container.createDiv({ cls: "vault-terminal-host" });
-    // Wait one animation frame so the browser computes layout before opening
-    // xterm — without this, term.open() creates a 0x0 canvas and font
-    // measurement returns 0, causing fitAddon.proposeDimensions() to always
-    // return null and the retry loop to exhaust without ever fitting.
-    await new Promise<void>(r => requestAnimationFrame(() => r()));
     this.initTerminal();
     // Pick up cwd pre-set by openNewTerminal before setViewState was called
     if (this.plugin.pendingCwd) {
       this.workingDir = this.plugin.pendingCwd;
       this.plugin.pendingCwd = null;
     }
-    await this.startSession();
-    // Second fit after PTY starts so pty.resize() reaches a live process
-    this.scheduleFit();
+    // Delay session start so onOpen() returns first, letting Obsidian finish
+    // revealing and laying out the sidebar before we measure dimensions.
+    // ensureFitWithRetry() handles sizing once real dimensions are available.
+    setTimeout(() => this.startSession(), 10);
   }
 
   private initTerminal() {
@@ -133,6 +127,8 @@ export class TerminalView extends ItemView {
       this.app.workspace.on("layout-change", () => this.scheduleFit())
     );
 
+    // Retry fit until container has real dimensions (Obsidian reveals leaf async)
+    this.ensureFitWithRetry();
   }
 
   private scheduleFit() {
@@ -157,6 +153,17 @@ export class TerminalView extends ItemView {
         this.term.scrollToLine(savedY);
       }
     } catch {}
+  }
+
+  private async ensureFitWithRetry() {
+    for (let i = 0; i < 20; i++) {
+      await new Promise<void>(r => setTimeout(r, 100));
+      const dim = this.fitAddon?.proposeDimensions();
+      if (dim && dim.rows > 0 && dim.cols > 0) {
+        this.doFit();
+        return;
+      }
+    }
   }
 
   private resolveCwd(): string {
