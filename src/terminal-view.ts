@@ -199,21 +199,6 @@ export class TerminalView extends ItemView {
     const extra = this.plugin.data.additionalFlags;
     if (extra) flags.push(...extra.split(/\s+/).filter(Boolean));
 
-    // One-shot: send a SIGWINCH 500 ms after the last PTY data burst.
-    // This fires once OpenCode's initial TUI render has settled, activating
-    // the input widget on TUI frameworks that need a resize event to do so.
-    // The flag is local to this session so it resets on restartSession().
-    let postInitDone = false;
-    const schedulePostInit = () => {
-      if (postInitDone) return;
-      if (this.postInitTimer) clearTimeout(this.postInitTimer);
-      this.postInitTimer = setTimeout(() => {
-        if (postInitDone || !this.pty.isRunning || !this.term) return;
-        postInitDone = true;
-        this.pty.resize(this.term.cols, this.term.rows);
-      }, 500);
-    };
-
     this.pty.onData = (data) => {
       if (!this.term) return;
       const buf = this.term.buffer.active;
@@ -228,7 +213,6 @@ export class TerminalView extends ItemView {
           this.term.scrollToLine(savedY);
         }
       }
-      schedulePostInit();
     };
 
     this.pty.onError = (data) => {
@@ -250,6 +234,24 @@ export class TerminalView extends ItemView {
 
     // Give focus to the terminal so keyboard input works immediately
     setTimeout(() => this.term?.focus(), 500);
+
+    // Micro-resize after OpenCode finishes startup: briefly shrink cols by 1
+    // then restore. This sends two genuine size-change SIGWINCHes, which is
+    // exactly what a manual sidebar drag does. Most TUI frameworks (including
+    // OpenCode) only activate the input widget when the terminal size CHANGES —
+    // a same-size SIGWINCH is silently ignored. A settle-based approach doesn't
+    // work here because OpenCode enables mouse-motion tracking, keeping the PTY
+    // constantly active. A fixed 2-second delay is simpler and reliable.
+    if (this.postInitTimer) clearTimeout(this.postInitTimer);
+    this.postInitTimer = setTimeout(() => {
+      if (!this.pty.isRunning || !this.term || this.term.cols < 3) return;
+      const c = this.term.cols;
+      const r = this.term.rows;
+      this.term.resize(c - 1, r);          // SIGWINCH: cols → cols-1
+      setTimeout(() => {
+        if (this.pty.isRunning && this.term) this.term.resize(c, r); // SIGWINCH: cols-1 → cols
+      }, 100);
+    }, 2000);
 
     this.plugin.data.lastCwd = workingDir;
     await this.plugin.saveData(this.plugin.data);
