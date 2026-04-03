@@ -78,24 +78,16 @@ export class TerminalView extends ItemView {
       this.plugin.pendingCwd = null;
     }
 
-    // Initialize terminal immediately (before container has real pixel dimensions).
-    // This mirrors claude-sidebar's pattern: term.open() with a 0-dim container
-    // means xterm starts at its default size (80×24). When ensureFitWithRetry()
-    // later calls fit() with real dimensions, term.resize() is a genuine size
-    // change → triggers a full canvas repaint. If we wait for real dims before
-    // term.open(), xterm starts at the correct size and fit() becomes a no-op,
-    // leaving the canvas without a proper initial repaint.
+    // Open terminal before the container has pixel dimensions (defaults to 80×24).
+    // The subsequent fit in ensureFitWithRetry() will be a genuine size change
+    // (80×24 → actual), triggering a full xterm canvas repaint.
     this.initTerminal();
 
-    // Start the PTY almost immediately so it is running when ensureFitWithRetry
-    // fires (~100 ms later) and sends the first resize/SIGWINCH.
-    setTimeout(() => {
-      if (!this.pty.isRunning) this.startSession();
-    }, 10);
-
-    // Background: poll until xterm has valid char-cell dims, then fit.
-    // term.onResize() registered in initTerminal() will forward the resulting
-    // resize to the PTY automatically.
+    // Poll until xterm has valid char-cell dims, fit, THEN start the PTY.
+    // Delaying PTY start until after the fit ensures OpenCode launches with the
+    // correct terminal dimensions from the very beginning, avoiding a race where
+    // a mid-startup SIGWINCH (sent right after fit) interrupts TUI initialisation
+    // and leaves the input widget failing to echo typed characters.
     this.ensureFitWithRetry();
   }
 
@@ -105,21 +97,15 @@ export class TerminalView extends ItemView {
       const dim = this.fitAddon?.proposeDimensions();
       if (dim && dim.rows > 0) {
         this.doFit();
-        // Also send resize explicitly in case PTY is already running
-        if (this.pty.isRunning) {
-          this.pty.resize(this.term!.cols, this.term!.rows);
-        }
-        // After OpenCode's initial TUI draw settles, force a full canvas
-        // refresh so the input area cells are re-rendered. Without this,
-        // xterm marks those cells "clean" after the initial fit repaint and
-        // won't repaint them again even if OpenCode wrote to them — the same
-        // issue that a manual width-drag fixes (which triggers a clear+resize).
-        setTimeout(() => {
-          if (this.term) this.term.refresh(0, this.term.rows - 1);
-        }, 600);
+        // Start PTY now that xterm is at its final dimensions.
+        // OpenCode will launch with the correct cols/rows and never needs a
+        // startup SIGWINCH. Future resizes go through term.onResize (see initTerminal).
+        if (!this.pty.isRunning) this.startSession();
         return;
       }
     }
+    // Fallback: container never reported valid dims; start at whatever xterm defaulted to.
+    if (!this.pty.isRunning) this.startSession();
   }
 
   private initTerminal() {
