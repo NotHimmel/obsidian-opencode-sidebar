@@ -6434,23 +6434,25 @@ var TerminalView = class extends import_obsidian.ItemView {
       this.workingDir = this.plugin.pendingCwd;
       this.plugin.pendingCwd = null;
     }
-    this.initAndStart();
-  }
-  async initAndStart() {
-    var _a;
-    for (let i = 0; i < 40; i++) {
-      await new Promise((r) => setTimeout(r, 50));
-      if (this.termHost.offsetWidth > 0 && this.termHost.offsetHeight > 0) break;
-    }
-    if (!this.termHost) return;
     this.initTerminal();
+    setTimeout(() => {
+      if (!this.pty.isRunning) this.startSession();
+    }, 10);
+    this.ensureFitWithRetry();
+  }
+  async ensureFitWithRetry() {
+    var _a;
     for (let i = 0; i < 20; i++) {
+      await new Promise((r) => setTimeout(r, 100));
       const dim = (_a = this.fitAddon) == null ? void 0 : _a.proposeDimensions();
-      if (dim && dim.rows > 0) break;
-      await new Promise((r) => setTimeout(r, 50));
+      if (dim && dim.rows > 0) {
+        this.doFit();
+        if (this.pty.isRunning) {
+          this.pty.resize(this.term.cols, this.term.rows);
+        }
+        return;
+      }
     }
-    this.doFit();
-    await this.startSession();
   }
   initTerminal() {
     const theme = this.plugin.data.ansiTheme === "obsidian" ? getObsidianTheme() : {};
@@ -6466,6 +6468,9 @@ var TerminalView = class extends import_obsidian.ItemView {
     this.term.loadAddon(this.fitAddon);
     this.term.open(this.termHost);
     this.term.onData((data) => this.pty.write(data));
+    this.term.onResize(({ cols, rows }) => {
+      if (this.pty.isRunning) this.pty.resize(cols, rows);
+    });
     const viewport = this.termHost.querySelector(".xterm-viewport");
     if (viewport) {
       viewport.addEventListener("scroll", () => {
@@ -6549,11 +6554,6 @@ var TerminalView = class extends import_obsidian.ItemView {
       (_e = this.term) == null ? void 0 : _e.write(`\x1B[31mFailed to start: ${err}\x1B[0m\r
 `);
     }
-    setTimeout(() => {
-      if (this.pty.isRunning) {
-        this.pty.resize(this.term.cols, this.term.rows);
-      }
-    }, 300);
     setTimeout(() => {
       var _a2;
       return (_a2 = this.term) == null ? void 0 : _a2.focus();

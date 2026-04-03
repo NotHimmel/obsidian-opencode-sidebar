@@ -73,37 +73,45 @@ export class TerminalView extends ItemView {
     container.empty();
     container.addClass("vault-terminal");
     this.termHost = container.createDiv({ cls: "vault-terminal-host" });
-    // Pick up cwd pre-set by openNewTerminal before setViewState was called
     if (this.plugin.pendingCwd) {
       this.workingDir = this.plugin.pendingCwd;
       this.plugin.pendingCwd = null;
     }
-    // Return immediately so Obsidian reveals and lays out the sidebar leaf.
-    // initAndStart() waits for real pixel dimensions before calling term.open(),
-    // ensuring xterm's char size is measured correctly on first open.
-    this.initAndStart();
+
+    // Initialize terminal immediately (before container has real pixel dimensions).
+    // This mirrors claude-sidebar's pattern: term.open() with a 0-dim container
+    // means xterm starts at its default size (80×24). When ensureFitWithRetry()
+    // later calls fit() with real dimensions, term.resize() is a genuine size
+    // change → triggers a full canvas repaint. If we wait for real dims before
+    // term.open(), xterm starts at the correct size and fit() becomes a no-op,
+    // leaving the canvas without a proper initial repaint.
+    this.initTerminal();
+
+    // Start the PTY almost immediately so it is running when ensureFitWithRetry
+    // fires (~100 ms later) and sends the first resize/SIGWINCH.
+    setTimeout(() => {
+      if (!this.pty.isRunning) this.startSession();
+    }, 10);
+
+    // Background: poll until xterm has valid char-cell dims, then fit.
+    // term.onResize() registered in initTerminal() will forward the resulting
+    // resize to the PTY automatically.
+    this.ensureFitWithRetry();
   }
 
-  private async initAndStart() {
-    // Wait until termHost has real pixel dimensions (sidebar fully revealed)
-    for (let i = 0; i < 40; i++) {
-      await new Promise<void>(r => setTimeout(r, 50));
-      if (this.termHost!.offsetWidth > 0 && this.termHost!.offsetHeight > 0) break;
-    }
-    if (!this.termHost) return;
-    this.initTerminal();   // term.open() starts async char-cell measurement
-
-    // Wait for xterm to finish measuring char cells — proposeDimensions() returns
-    // null/0-rows until then. Without this wait, doFit() sends wrong dimensions
-    // to the PTY and Bubble Tea (OpenCode) never redraws its input area.
+  private async ensureFitWithRetry() {
     for (let i = 0; i < 20; i++) {
+      await new Promise<void>(r => setTimeout(r, 100));
       const dim = this.fitAddon?.proposeDimensions();
-      if (dim && dim.rows > 0) break;
-      await new Promise<void>(r => setTimeout(r, 50));
+      if (dim && dim.rows > 0) {
+        this.doFit();
+        // Also send resize explicitly in case PTY is already running
+        if (this.pty.isRunning) {
+          this.pty.resize(this.term!.cols, this.term!.rows);
+        }
+        return;
+      }
     }
-
-    this.doFit();          // now has valid char dimensions
-    await this.startSession(); // PTY starts with correct term.cols / term.rows
   }
 
   private initTerminal() {
@@ -125,6 +133,12 @@ export class TerminalView extends ItemView {
 
     // Forward keyboard/paste input to PTY
     this.term.onData((data) => this.pty.write(data));
+
+    // Forward every xterm resize to the PTY so the child process always has
+    // the correct terminal dimensions (also sends SIGWINCH via terminal_pty.py).
+    this.term.onResize(({ cols, rows }) => {
+      if (this.pty.isRunning) this.pty.resize(cols, rows);
+    });
 
     // Track user scrolls to pause auto-scroll
     const viewport = this.termHost!.querySelector(".xterm-viewport");
@@ -222,15 +236,6 @@ export class TerminalView extends ItemView {
     } catch (err) {
       this.term?.write(`\x1b[31mFailed to start: ${err}\x1b[0m\r\n`);
     }
-
-    // Bubble Tea (OpenCode) requires a SIGWINCH after startup to activate its
-    // input handling. The SIGWINCH sent during pty.fork() is lost before
-    // opencode starts. Send a resize once the process is running.
-    setTimeout(() => {
-      if (this.pty.isRunning) {
-        this.pty.resize(this.term!.cols, this.term!.rows);
-      }
-    }, 300);
 
     // Give focus to the terminal so keyboard input works immediately
     setTimeout(() => this.term?.focus(), 500);
