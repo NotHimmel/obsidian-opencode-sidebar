@@ -6544,6 +6544,11 @@ var TerminalView = class extends import_obsidian.ItemView {
 `);
     }
     setTimeout(() => {
+      if (this.pty.isRunning) {
+        this.pty.resize(this.term.cols, this.term.rows);
+      }
+    }, 300);
+    setTimeout(() => {
       var _a2;
       return (_a2 = this.term) == null ? void 0 : _a2.focus();
     }, 500);
