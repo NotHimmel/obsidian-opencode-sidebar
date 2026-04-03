@@ -199,6 +199,24 @@ export class TerminalView extends ItemView {
     const extra = this.plugin.data.additionalFlags;
     if (extra) flags.push(...extra.split(/\s+/).filter(Boolean));
 
+    // Micro-resize helper: briefly shrink cols by 1 then restore.
+    // Sends two genuine size-change SIGWINCHes — exactly what a manual sidebar
+    // drag does. Most TUI frameworks only activate the input widget on a real
+    // size change; a same-size SIGWINCH is ignored.
+    let inputActivated = false;
+    const activateInput = () => {
+      if (inputActivated || !this.pty.isRunning || !this.term || this.term.cols < 3) return;
+      inputActivated = true;
+      const c = this.term.cols;
+      const r = this.term.rows;
+      this.term.resize(c - 1, r);
+      setTimeout(() => {
+        if (this.pty.isRunning && this.term) this.term.resize(c, r);
+      }, 100);
+    };
+
+    if (this.postInitTimer) clearTimeout(this.postInitTimer);
+
     this.pty.onData = (data) => {
       if (!this.term) return;
       const buf = this.term.buffer.active;
@@ -212,6 +230,12 @@ export class TerminalView extends ItemView {
         if (buf.viewportY !== savedY) {
           this.term.scrollToLine(savedY);
         }
+      }
+      // On first PTY output, schedule activateInput 5 s later.
+      // We set the timer only once (postInitTimer stays set after first data),
+      // so subsequent mouse-event output doesn't reset the countdown.
+      if (!inputActivated && !this.postInitTimer) {
+        this.postInitTimer = setTimeout(activateInput, 5000);
       }
     };
 
@@ -234,24 +258,6 @@ export class TerminalView extends ItemView {
 
     // Give focus to the terminal so keyboard input works immediately
     setTimeout(() => this.term?.focus(), 500);
-
-    // Micro-resize after OpenCode finishes startup: briefly shrink cols by 1
-    // then restore. This sends two genuine size-change SIGWINCHes, which is
-    // exactly what a manual sidebar drag does. Most TUI frameworks (including
-    // OpenCode) only activate the input widget when the terminal size CHANGES —
-    // a same-size SIGWINCH is silently ignored. A settle-based approach doesn't
-    // work here because OpenCode enables mouse-motion tracking, keeping the PTY
-    // constantly active. A fixed 2-second delay is simpler and reliable.
-    if (this.postInitTimer) clearTimeout(this.postInitTimer);
-    this.postInitTimer = setTimeout(() => {
-      if (!this.pty.isRunning || !this.term || this.term.cols < 3) return;
-      const c = this.term.cols;
-      const r = this.term.rows;
-      this.term.resize(c - 1, r);          // SIGWINCH: cols → cols-1
-      setTimeout(() => {
-        if (this.pty.isRunning && this.term) this.term.resize(c, r); // SIGWINCH: cols-1 → cols
-      }, 100);
-    }, 10000);
 
     this.plugin.data.lastCwd = workingDir;
     await this.plugin.saveData(this.plugin.data);
