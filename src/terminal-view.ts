@@ -91,8 +91,18 @@ export class TerminalView extends ItemView {
       if (this.termHost!.offsetWidth > 0 && this.termHost!.offsetHeight > 0) break;
     }
     if (!this.termHost) return;
-    this.initTerminal();   // term.open() now has valid dimensions → char size ≠ 0
-    this.doFit();          // immediate fit works because char size is correct
+    this.initTerminal();   // term.open() starts async char-cell measurement
+
+    // Wait for xterm to finish measuring char cells — proposeDimensions() returns
+    // null/0-rows until then. Without this wait, doFit() sends wrong dimensions
+    // to the PTY and Bubble Tea (OpenCode) never redraws its input area.
+    for (let i = 0; i < 20; i++) {
+      const dim = this.fitAddon?.proposeDimensions();
+      if (dim && dim.rows > 0) break;
+      await new Promise<void>(r => setTimeout(r, 50));
+    }
+
+    this.doFit();          // now has valid char dimensions
     await this.startSession(); // PTY starts with correct term.cols / term.rows
   }
 

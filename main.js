@@ -6437,12 +6437,18 @@ var TerminalView = class extends import_obsidian.ItemView {
     this.initAndStart();
   }
   async initAndStart() {
+    var _a;
     for (let i = 0; i < 40; i++) {
       await new Promise((r) => setTimeout(r, 50));
       if (this.termHost.offsetWidth > 0 && this.termHost.offsetHeight > 0) break;
     }
     if (!this.termHost) return;
     this.initTerminal();
+    for (let i = 0; i < 20; i++) {
+      const dim = (_a = this.fitAddon) == null ? void 0 : _a.proposeDimensions();
+      if (dim && dim.rows > 0) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
     this.doFit();
     await this.startSession();
   }
