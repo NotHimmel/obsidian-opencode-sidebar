@@ -181,12 +181,16 @@ export class TerminalView extends ItemView {
   }
 
   private resolveCwd(): string {
-    if (this.workingDir) return this.workingDir;
-    if (this.plugin.data.lastCwd) return this.plugin.data.lastCwd;
-    if (this.plugin.data.defaultWorkingDir) return this.plugin.data.defaultWorkingDir;
-    // Fall back to vault root
-    return (this.app.vault.adapter as unknown as { basePath: string }).basePath
-      ?? process.cwd();
+    const { existsSync } = require("fs") as typeof import("fs");
+    const vaultRoot = (this.app.vault.adapter as unknown as { basePath: string }).basePath;
+    // Only use a cached path if it still exists — switching vaults can leave
+    // lastCwd / defaultWorkingDir pointing at a directory that no longer exists,
+    // which causes Node spawn to report ENOENT for the executable (a misleading
+    // Windows error when the cwd is the real missing entity).
+    for (const p of [this.workingDir, this.plugin.data.lastCwd, this.plugin.data.defaultWorkingDir, vaultRoot]) {
+      if (p && existsSync(p)) return p;
+    }
+    return process.cwd();
   }
 
   async startSession(cwd?: string) {

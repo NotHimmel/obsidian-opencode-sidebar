@@ -69,8 +69,12 @@ export class PtyManager {
       }
     }
 
+    // If cwd doesn't exist, omit it so spawn inherits the process cwd instead
+    // of failing with a misleading "spawn <exe> ENOENT" on Windows.
+    const safeCwd = fs.existsSync(cwd) ? cwd : undefined;
+
     this.proc = spawn(python, args, {
-      cwd,
+      cwd: safeCwd,
       env: shellEnv,
       stdio: ["pipe", "pipe", "pipe"],
     });
