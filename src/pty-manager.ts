@@ -113,22 +113,22 @@ export class PtyManager {
   private detectPython(isWindows: boolean): string {
     if (!isWindows) return "python3";
 
-    // Windows: try py launcher first (python.org installer), then where.exe
-    try {
-      execSync("py --version", { stdio: "ignore", timeout: 2000 });
-      return "py";
-    } catch {}
-
-    try {
-      const out = execSync("where.exe python", { encoding: "utf8", timeout: 2000 });
-      const paths = out
-        .split(/\r?\n/)
-        .map((p) => p.trim())
-        .filter((p) => p && !p.includes("WindowsApps"));
-      const bat = paths.find((p) => p.toLowerCase().endsWith(".bat"));
-      if (bat) return bat;
-      if (paths.length > 0) return paths[0];
-    } catch {}
+    // Use where.exe to resolve the full executable path for each candidate.
+    // Returning just the command name (e.g. "py") causes "spawn py ENOENT"
+    // because Node spawn uses a direct PATH lookup while execSync uses the
+    // cmd.exe shell — they don't always resolve the same locations.
+    for (const cmd of ["py", "python3", "python"]) {
+      try {
+        const out = execSync(`where.exe ${cmd}`, { encoding: "utf8", timeout: 2000 });
+        const paths = out
+          .split(/\r?\n/)
+          .map((p) => p.trim())
+          .filter((p) => p && !p.includes("WindowsApps"));
+        const bat = paths.find((p) => p.toLowerCase().endsWith(".bat"));
+        if (bat) return bat;
+        if (paths.length > 0) return paths[0];
+      } catch {}
+    }
 
     return "python";
   }
